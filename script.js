@@ -61,7 +61,7 @@ sendBtn.addEventListener('click', () => {
     }, 500);
 
     // Закрываем Mini App через 2 секунды
-    setTimeout(() => tg.close(), 30000);
+    setTimeout(() => tg.close(), 2000);
 });
 
 // Показываем кнопку "Готово" в интерфейсе Telegram
