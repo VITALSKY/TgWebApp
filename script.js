@@ -8,6 +8,25 @@ document.addEventListener('DOMContentLoaded', function() {
         showError('Telegram API не загружен');
         return;
     }
+
+    tg.expand();
+
+    // Получаем данные пользователя
+    const user = tg.initDataUnsafe.user;
+    const greeting = document.getElementById('greeting');
+    const sendBtn = document.getElementById('send-btn');
+    const responseDiv = document.getElementById('response');
+    
+    // Устанавливаем приветствие
+    if (user) {
+        greeting.textContent = `Привет, ${user.first_name}! 👋`;
+        // Добавляем аватар, если есть
+        if (user.photo_url) {
+            greeting.innerHTML += `<br><img src="${user.photo_url}" style="width: 50px; border-radius: 50%; margin-top: 10px;">`;
+        }
+    } else {
+        greeting.textContent = "Привет, аноним! 👋";
+    }
     
     const tg = window.Telegram.WebApp;
     const sendBtn = document.getElementById('send-btn');
