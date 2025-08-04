@@ -1,111 +1,85 @@
 // Инициализация WebApp
 const tg = window.Telegram.WebApp;
-
-// Развернуть приложение на весь экран
-tg.expand();
-
-// Получаем данные пользователя
-const user = tg.initDataUnsafe.user;
-const greeting = document.getElementById('greeting');
 const sendBtn = document.getElementById('send-btn');
-const responseDiv = document.getElementById('response');
 
-// Устанавливаем приветствие
-if (user) {
-    greeting.textContent = `Привет, ${user.first_name}! 👋`;
-    // Добавляем аватар, если есть
-    if (user.photo_url) {
-        greeting.innerHTML += `<br><img src="${user.photo_url}" style="width: 50px; border-radius: 50%; margin-top: 10px;">`;
-    }
+// Проверяем, загрузился ли Telegram WebApp API
+if (!tg || !tg.sendData) {
+    console.error("Telegram WebApp API не загружен!");
+    sendBtn.textContent = "Ошибка загрузки Telegram API";
+    sendBtn.style.backgroundColor = "red";
 } else {
-    greeting.textContent = "Привет, аноним! 👋";
+    tg.expand(); // Развернуть на весь экран
+    
+    // Обработчик кнопки (с проверкой на существование)
+    if (sendBtn) {
+        sendBtn.addEventListener('click', () => {
+            const user = tg.initDataUnsafe?.user || {};
+            
+            // Создаём объект данных
+            const data = {
+                action: "button_click",
+                user_id: user.id || "anonymous",
+                time: new Date().toLocaleTimeString()
+            };
+
+            // Визуальный feedback
+            sendBtn.disabled = true;
+            sendBtn.textContent = "Отправка...";
+            
+            try {
+                tg.sendData(JSON.stringify(data));
+                showAlert("✅ Данные отправлены!");
+                
+                // Автозакрытие через 1.5 сек
+                setTimeout(() => tg.close(), 1500);
+            } catch (e) {
+                showAlert("❌ Ошибка отправки: " + e.message);
+                sendBtn.disabled = false;
+                sendBtn.textContent = "Попробовать снова";
+            }
+        });
+    } else {
+        console.error("Элемент send-btn не найден!");
+    }
 }
 
-// Обработка кнопки
-sendBtn.addEventListener('click', () => {
-    // Создаем данные для отправки
-    const data = {
-        action: "button_click",
-        user_id: user?.id || "anonymous",
-        timestamp: new Date().toISOString(),
-        platform: tg.platform
-    };
-
-    // Анимация нажатия
-    sendBtn.style.transform = 'scale(0.95)';
-    sendBtn.style.opacity = '0.8';
-    setTimeout(() => {
-        sendBtn.style.transform = '';
-        sendBtn.style.opacity = '';
-    }, 200);
-
-    // Показываем уведомление
-    responseDiv.innerHTML = `
-        <div class="notification">
-            <p>Отправляем данные...</p>
-            <pre>${JSON.stringify(data, null, 2)}</pre>
-        </div>
+// Функция показа уведомлений
+function showAlert(message) {
+    const alert = document.createElement('div');
+    alert.style = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 12px 24px;
+        background: var(--tg-theme-button-color);
+        color: var(--tg-theme-button-text-color);
+        border-radius: 25px;
+        z-index: 1000;
+        animation: fadeIn 0.3s;
     `;
-
-    // Отправляем данные боту
-    tg.sendData(JSON.stringify(data));
+    alert.textContent = message;
+    document.body.appendChild(alert);
     
-    // Показываем подтверждение
     setTimeout(() => {
-        responseDiv.innerHTML += `
-            <div class="confirmation">
-                <p>✅ Данные успешно отправлены!</p>
-                <small>Приложение закроется через 2 секунды...</small>
-            </div>
-        `;
-    }, 500);
+        alert.style.animation = "fadeOut 0.3s";
+        setTimeout(() => alert.remove(), 300);
+    }, 2000);
+}
 
-    // Закрываем Mini App через 2 секунды
-    setTimeout(() => tg.close(), 2000);
-});
-
-// Показываем кнопку "Готово" в интерфейсе Telegram
-tg.MainButton.setText("Закрыть").show();
-tg.MainButton.onClick(() => {
-    tg.showPopup({
-        title: "Подтверждение",
-        message: "Вы уверены, что хотите закрыть приложение?",
-        buttons: [
-            {id: "close", type: "destructive", text: "Да, закрыть"},
-            {type: "default", text: "Отмена"}
-        ]
-    }, (buttonId) => {
-        if (buttonId === "close") tg.close();
-    });
-});
-
-// Добавляем стили для уведомлений
+// Добавляем стили для анимаций
 const style = document.createElement('style');
 style.textContent = `
-    .notification {
-        background: var(--tg-theme-secondary-bg-color);
-        padding: 15px;
-        border-radius: 10px;
-        margin: 15px 0;
-        animation: fadeIn 0.3s ease;
-    }
-    .confirmation {
-        background: var(--tg-theme-bg-color);
-        border: 1px solid var(--tg-theme-button-color);
-        padding: 10px;
-        border-radius: 10px;
-        margin-top: 10px;
-        text-align: center;
-    }
-    pre {
-        background: var(--tg-theme-bg-color);
-        padding: 10px;
-        border-radius: 5px;
-        overflow-x: auto;
-    }
     @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
+        from { opacity: 0; transform: translate(-50%, -20px); }
+        to { opacity: 1; transform: translate(-50%, 0); }
+    }
+    @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+    }
+    #send-btn:active {
+        transform: scale(0.95);
     }
 `;
 document.head.appendChild(style);
