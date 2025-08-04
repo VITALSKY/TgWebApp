@@ -116,9 +116,5 @@ style.textContent = `
     #send-btn:active {
         transform: scale(0.98);
     }
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
 `;
 document.head.appendChild(style);
