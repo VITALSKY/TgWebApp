@@ -21,7 +21,7 @@ if (user) {
     greeting.textContent = "Привет, аноним! 👋";
 }
 
-// Обработка кнопки
+// Обработка кнопки отправки
 sendBtn.addEventListener('click', () => {
     // Создаем данные для отправки
     const data = {
@@ -39,6 +39,10 @@ sendBtn.addEventListener('click', () => {
         sendBtn.style.opacity = '';
     }, 200);
 
+    // Блокируем кнопку на время отправки
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Отправка...';
+
     // Показываем уведомление
     responseDiv.innerHTML = `
         <div class="notification">
@@ -50,21 +54,22 @@ sendBtn.addEventListener('click', () => {
     // Отправляем данные боту
     tg.sendData(JSON.stringify(data));
     
-    // Показываем подтверждение
+    // Показываем подтверждение и восстанавливаем кнопку
     setTimeout(() => {
-        responseDiv.innerHTML += `
+        responseDiv.innerHTML = `
             <div class="confirmation">
                 <p>✅ Данные успешно отправлены!</p>
-                <small>Приложение закроется через 2 секунды...</small>
+                <p>Теперь вы можете закрыть приложение</p>
             </div>
         `;
+        
+        // Восстанавливаем кнопку
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Отправить данные боту';
     }, 500);
-
-    // Закрываем Mini App через 2 секунды
-    setTimeout(() => tg.close(), 2000);
 });
 
-// Показываем кнопку "Готово" в интерфейсе Telegram
+// Настройка кнопки "Закрыть"
 tg.MainButton.setText("Закрыть").show();
 tg.MainButton.onClick(() => {
     tg.showPopup({
@@ -90,12 +95,12 @@ style.textContent = `
         animation: fadeIn 0.3s ease;
     }
     .confirmation {
-        background: var(--tg-theme-bg-color);
-        border: 1px solid var(--tg-theme-button-color);
-        padding: 10px;
+        background: var(--tg-theme-secondary-bg-color);
+        padding: 15px;
         border-radius: 10px;
-        margin-top: 10px;
+        margin: 15px 0;
         text-align: center;
+        animation: fadeIn 0.3s ease;
     }
     pre {
         background: var(--tg-theme-bg-color);
@@ -106,6 +111,10 @@ style.textContent = `
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
+    }
+    #send-btn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
     }
 `;
 document.head.appendChild(style);
