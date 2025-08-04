@@ -1,107 +1,120 @@
-// Инициализация WebApp
-const tg = window.Telegram.WebApp;
-
-// Развернуть приложение на весь экран
-tg.expand();
-
-// Получаем данные пользователя
-const user = tg.initDataUnsafe.user;
-const greeting = document.getElementById('greeting');
-const sendBtn = document.getElementById('send-btn');
-const responseDiv = document.getElementById('response');
-
-// Устанавливаем приветствие
-if (user) {
-    greeting.textContent = `Привет, ${user.first_name}! 👋`;
-    // Добавляем аватар, если есть
-    if (user.photo_url) {
-        greeting.innerHTML += `<br><img src="${user.photo_url}" style="width: 50px; border-radius: 50%; margin-top: 10px;">`;
-    }
-} else {
-    greeting.textContent = "Привет, аноним! 👋";
+// Проверка инициализации Telegram WebApp
+if (!window.Telegram || !window.Telegram.WebApp) {
+    document.body.innerHTML = '<p style="color:red;padding:20px;text-align:center">Ошибка инициализации Telegram WebApp</p>';
+    throw new Error('Telegram WebApp API не доступен');
 }
 
-// Обработка кнопки
-sendBtn.addEventListener('click', () => {
-    // Создаем данные для отправки
-    const data = {
-        action: "button_click",
-        user_id: user?.id || "anonymous",
-        timestamp: new Date().toISOString(),
-        platform: tg.platform
-    };
+const tg = window.Telegram.WebApp;
+tg.expand();
 
-    // Анимация нажатия
-    sendBtn.style.transform = 'scale(0.95)';
-    sendBtn.style.opacity = '0.8';
-    setTimeout(() => {
-        sendBtn.style.transform = '';
-        sendBtn.style.opacity = '';
-    }, 200);
+// Элементы интерфейса
+const greeting = document.getElementById('greeting');
+const sendBtn = document.getElementById('send-btn');
+const responseDiv = document.getElementById('response') || document.createElement('div');
+responseDiv.id = 'response';
+document.body.appendChild(responseDiv);
 
-    // Показываем уведомление
-    responseDiv.innerHTML = `
-        <div class="notification">
-            <p>Отправляем данные...</p>
-            <pre>${JSON.stringify(data, null, 2)}</pre>
-        </div>
-    `;
+// Приветствие пользователя
+if (tg.initDataUnsafe?.user) {
+    const user = tg.initDataUnsafe.user;
+    greeting.innerHTML = `Привет, ${user.first_name || 'пользователь'}! 👋`;
+    if (user.photo_url) {
+        greeting.innerHTML += `<br><img src="${user.photo_url}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;margin-top:10px;">`;
+    }
+} else {
+    greeting.textContent = "Привет! 👋";
+}
 
-    // Отправляем данные боту
-    tg.sendData(JSON.stringify(data));
-    
-    // Показываем подтверждение
-    setTimeout(() => {
-        responseDiv.innerHTML += `
-            <div class="confirmation">
-                <p>✅ Данные успешно отправлены!</p>
-                <small>Приложение закроется через 2 секунды...</small>
+// Обработчик кнопки отправки
+sendBtn.addEventListener('click', async () => {
+    try {
+        // Подготовка данных
+        const data = {
+            action: "button_click",
+            user_id: tg.initDataUnsafe?.user?.id || "anonymous",
+            timestamp: new Date().toISOString(),
+            platform: tg.platform
+        };
+
+        // UI feedback
+        sendBtn.disabled = true;
+        sendBtn.textContent = "Отправка...";
+        responseDiv.innerHTML = `
+            <div class="notification">
+                <p>⌛ Отправляем данные...</p>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
             </div>
         `;
-    }, 500);
 
-    // Закрываем Mini App через 2 секунды
-    setTimeout(() => tg.close(), 2000);
+        // Отправка данных
+        tg.sendData(JSON.stringify(data));
+        
+        // Успешная отправка
+        setTimeout(() => {
+            responseDiv.innerHTML = `
+                <div class="confirmation">
+                    <p>✅ Данные успешно отправлены!</p>
+                    <p>Вы можете продолжить или закрыть приложение</p>
+                </div>
+            `;
+            sendBtn.disabled = false;
+            sendBtn.textContent = "Отправить снова";
+        }, 500);
+
+    } catch (error) {
+        console.error("Ошибка отправки:", error);
+        responseDiv.innerHTML = `
+            <div class="error">
+                <p>❌ Ошибка отправки данных</p>
+                <p>${error.message}</p>
+            </div>
+        `;
+        sendBtn.disabled = false;
+        sendBtn.textContent = "Попробовать снова";
+    }
 });
 
-// Показываем кнопку "Готово" в интерфейсе Telegram
+// Кнопка закрытия
 tg.MainButton.setText("Закрыть").show();
 tg.MainButton.onClick(() => {
     tg.showPopup({
         title: "Подтверждение",
-        message: "Вы уверены, что хотите закрыть приложение?",
+        message: "Закрыть приложение?",
         buttons: [
-            {id: "close", type: "destructive", text: "Да, закрыть"},
-            {type: "default", text: "Отмена"}
+            {id: "close", type: "destructive", text: "Да"},
+            {type: "default", text: "Нет"}
         ]
-    }, (buttonId) => {
-        if (buttonId === "close") tg.close();
-    });
+    }, (buttonId) => buttonId === "close" && tg.close());
 });
 
-// Добавляем стили для уведомлений
+// Стили
 const style = document.createElement('style');
 style.textContent = `
-    .notification {
-        background: var(--tg-theme-secondary-bg-color);
+    .notification, .confirmation, .error {
         padding: 15px;
         border-radius: 10px;
         margin: 15px 0;
-        animation: fadeIn 0.3s ease;
+        animation: fadeIn 0.3s;
     }
-    .confirmation {
-        background: var(--tg-theme-bg-color);
-        border: 1px solid var(--tg-theme-button-color);
-        padding: 10px;
-        border-radius: 10px;
-        margin-top: 10px;
-        text-align: center;
-    }
+    .notification { background: var(--tg-theme-secondary-bg-color); }
+    .confirmation { background: #e8f5e9; color: #2e7d32; }
+    .error { background: #ffebee; color: #c62828; }
     pre {
         background: var(--tg-theme-bg-color);
         padding: 10px;
         border-radius: 5px;
         overflow-x: auto;
+        font-size: 14px;
+    }
+    #send-btn {
+        transition: all 0.2s;
+    }
+    #send-btn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+    #send-btn:active {
+        transform: scale(0.98);
     }
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
