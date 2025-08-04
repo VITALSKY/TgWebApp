@@ -1,85 +1,147 @@
-// Инициализация WebApp
-const tg = window.Telegram.WebApp;
-const sendBtn = document.getElementById('send-btn');
-
-// Проверяем, загрузился ли Telegram WebApp API
-if (!tg || !tg.sendData) {
-    console.error("Telegram WebApp API не загружен!");
-    sendBtn.textContent = "Ошибка загрузки Telegram API";
-    sendBtn.style.backgroundColor = "red";
-} else {
-    tg.expand(); // Развернуть на весь экран
+// Ждем полной загрузки DOM
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM fully loaded'); // Отладочное сообщение
     
-    // Обработчик кнопки (с проверкой на существование)
-    if (sendBtn) {
-        sendBtn.addEventListener('click', () => {
-            const user = tg.initDataUnsafe?.user || {};
+    // Проверяем наличие Telegram WebApp API
+    if (!window.Telegram || !window.Telegram.WebApp) {
+        console.error('Telegram WebApp API not found!');
+        showError('Telegram API не загружен');
+        return;
+    }
+    
+    const tg = window.Telegram.WebApp;
+    const sendBtn = document.getElementById('send-btn');
+    
+    if (!sendBtn) {
+        console.error('Send button not found!');
+        return;
+    }
+    
+    console.log('Telegram WebApp initialized:', tg); // Отладочная информация
+    
+    // Включаем полноэкранный режим
+    tg.expand();
+    
+    // Обработчик кнопки
+    sendBtn.addEventListener('click', function() {
+        console.log('Send button clicked'); // Отладочное сообщение
+        
+        // Блокируем кнопку на время обработки
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Отправка...';
+        
+        // Собираем данные
+        const user = tg.initDataUnsafe?.user || {};
+        const data = {
+            action: 'button_click',
+            user_id: user.id || 'anonymous',
+            first_name: user.first_name || 'unknown',
+            time: new Date().toISOString()
+        };
+        
+        console.log('Prepared data:', data); // Отладочная информация
+        
+        try {
+            // Показываем уведомление
+            showAlert('⌛ Отправляем данные...', 'info');
             
-            // Создаём объект данных
-            const data = {
-                action: "button_click",
-                user_id: user.id || "anonymous",
-                time: new Date().toLocaleTimeString()
-            };
-
-            // Визуальный feedback
-            sendBtn.disabled = true;
-            sendBtn.textContent = "Отправка...";
+            // Отправляем данные
+            tg.sendData(JSON.stringify(data));
             
-            try {
-                tg.sendData(JSON.stringify(data));
-                showAlert("✅ Данные отправлены!");
-                
-                // Автозакрытие через 1.5 сек
-                setTimeout(() => tg.close(), 1500);
-            } catch (e) {
-                showAlert("❌ Ошибка отправки: " + e.message);
+            console.log('Data sent successfully'); // Отладочное сообщение
+            
+            // Показываем подтверждение
+            showAlert('✅ Данные успешно отправлены!', 'success');
+            
+            // Восстанавливаем кнопку
+            setTimeout(() => {
                 sendBtn.disabled = false;
-                sendBtn.textContent = "Попробовать снова";
-            }
-        });
-    } else {
-        console.error("Элемент send-btn не найден!");
-    }
-}
-
-// Функция показа уведомлений
-function showAlert(message) {
-    const alert = document.createElement('div');
-    alert.style = `
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 12px 24px;
-        background: var(--tg-theme-button-color);
-        color: var(--tg-theme-button-text-color);
-        border-radius: 25px;
-        z-index: 1000;
-        animation: fadeIn 0.3s;
-    `;
-    alert.textContent = message;
-    document.body.appendChild(alert);
+                sendBtn.textContent = 'Отправить данные боту';
+            }, 2000);
+            
+        } catch (error) {
+            console.error('Error sending data:', error); // Отладочное сообщение
+            
+            // Показываем ошибку
+            showAlert(`❌ Ошибка: ${error.message}`, 'error');
+            
+            // Восстанавливаем кнопку
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Попробовать снова';
+        }
+    });
     
-    setTimeout(() => {
-        alert.style.animation = "fadeOut 0.3s";
-        setTimeout(() => alert.remove(), 300);
-    }, 2000);
-}
-
-// Добавляем стили для анимаций
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translate(-50%, -20px); }
-        to { opacity: 1; transform: translate(-50%, 0); }
+    // Функция показа уведомлений
+    function showAlert(message, type = 'info') {
+        const alert = document.createElement('div');
+        alert.className = 'telegram-alert';
+        
+        // Стили в зависимости от типа
+        const styles = {
+            position: 'fixed',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '12px 24px',
+            borderRadius: '25px',
+            zIndex: '1000',
+            animation: 'fadeIn 0.3s',
+            backgroundColor: type === 'error' ? '#ff4444' : 
+                          type === 'success' ? '#00C851' : '#33b5e5',
+            color: 'white',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
+        };
+        
+        // Применяем стили
+        Object.assign(alert.style, styles);
+        
+        alert.textContent = message;
+        document.body.appendChild(alert);
+        
+        // Автоматическое скрытие
+        setTimeout(() => {
+            alert.style.animation = 'fadeOut 0.3s';
+            setTimeout(() => alert.remove(), 300);
+        }, 3000);
     }
-    @keyframes fadeOut {
-        from { opacity: 1; }
-        to { opacity: 0; }
+    
+    // Функция показа ошибки
+    function showError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'telegram-error';
+        errorDiv.style = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #ff4444;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            z-index: 1000;
+        `;
+        errorDiv.textContent = message;
+        document.body.prepend(errorDiv);
     }
-    #send-btn:active {
-        transform: scale(0.95);
-    }
-`;
-document.head.appendChild(style);
+    
+    // Добавляем стили для анимаций
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        #send-btn:active {
+            transform: scale(0.95);
+        }
+        .telegram-alert {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 14px;
+        }
+    `;
+    document.head.appendChild(style);
+});
